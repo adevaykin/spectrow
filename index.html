@@ -38,9 +38,17 @@
 <script src="spectro.js"></script>
 
 <link rel="stylesheet" type="text/css" href="styles.css"/>
+
+<script>
+function autostart() {
+  spectrum = new Spectrow('glCanvas');
+  spectrum.start();
+}
+</script>
+
 </head>
 
-<body onload="start()">
+<body onload="autostart()">
   <canvas id="glCanvas">
     Your browser doesn't appear to support the
     <code>&lt;canvas&gt;</code> element.
