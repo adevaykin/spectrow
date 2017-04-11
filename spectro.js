@@ -172,43 +172,40 @@ Spectrow = function(canvas_id) {
     this.gl.uniform1i(this.gl.getUniformLocation(this.shaderProgram, 'uSampler'), 0);
   }
 
-  this.drawScene = function drawScene(inst) {
-    inst.gl.clear(inst.gl.COLOR_BUFFER_BIT | inst.gl.DEPTH_BUFFER_BIT);
+  this.drawScene = function drawScene() {
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
-    inst.orthoMatrix = makeOrtho(-1.0, 1.0, -1.0, 1.0, 0.1, 100.0);
+    this.orthoMatrix = makeOrtho(-1.0, 1.0, -1.0, 1.0, 0.1, 100.0);
 
-    inst.loadIdentity();
-    inst.mvTranslate([0.0, 0.0, -0.2]);
+    this.loadIdentity();
+    this.mvTranslate([0.0, 0.0, -0.2]);
 
-    inst.setAttributes();
-    inst.setUniforms();
+    this.setAttributes();
+    this.setUniforms();
 
-    inst.gl.bindBuffer(inst.gl.ELEMENT_ARRAY_BUFFER, inst.squareIdxBuffer);
-    inst.gl.drawArrays(inst.gl.TRIANGLE_STRIP, 0, 4);
+    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.squareIdxBuffer);
+    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
   }
 
   this.handleTextureLoaded = function handleTextureLoaded(image, texture) {
     this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, 256, 128, 0, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(image));
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_NEAREST);
     this.gl.generateMipmap(this.gl.TEXTURE_2D);
     this.gl.bindTexture(this.gl.TEXTURE_2D, null);
-
-    //this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, 256, 128, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, new Uint8Array(image));
   }
 
   this.initTextures = function initTextures() {
     this.cubeTexture = this.gl.createTexture();
 
-    var self = this;
-    this.loadingImage = new Image();
-    this.loadingImage.onload = function() { self.handleTextureLoaded(self.loadingImage, self.cubeTexture); }
-    this.loadingImage.src = 'images/loading_tex.png';
+    // var self = this;
+    // this.loadingImage = new Image();
+    // this.loadingImage.onload = function() { self.handleTextureLoaded(self.loadingImage, self.cubeTexture); }
+    // this.loadingImage.src = 'images/loading_tex.png';
 
-    //var image = Array.apply(null, Array(128*128*3)).map(Number.prototype.valueOf, 64);
-
-    this.handleTextureLoaded(this.loadingImage, this.cubeTexture);
+    var image = Array.apply(null, Array(256*128*3)).map(Number.prototype.valueOf, 128);
+    this.handleTextureLoaded(image, this.cubeTexture);
   }
 
   this.start = function start() {
@@ -235,15 +232,18 @@ Spectrow = function(canvas_id) {
     this.initBuffers();
     this.initTextures();
 
-    setInterval(this.drawScene(this), 500);
+    this.drawScene();
   }
 
   this.updateData = function updateData(data_source) {
-    var image = Array.apply(null, Array(256*128*4)).map(Number.prototype.valueOf, 64);
+    //var image = Array.apply(null, Array(256*128*4)).map(Number.prototype.valueOf, 64);
+
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.cubeTexture);
-    this.gl.texSubImage2D(this.gl.TEXTURE_2D, 0, 0, 0, 256, 128, this.gl.RGBA, this.gl.UNSIGNED_BYTE, new Uint8Array(image));
+    this.gl.texSubImage2D(this.gl.TEXTURE_2D, 0, 0, 0, 256, 128, this.gl.RGB, this.gl.UNSIGNED_BYTE, Module.HEAPU8.subarray(data_source, data_source+268*128*3));
     this.gl.generateMipmap(this.gl.TEXTURE_2D);
     this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+
+    this.drawScene()
   }
 
 }
