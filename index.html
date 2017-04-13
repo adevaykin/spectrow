@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 
 <head>
+  <meta charset="UTF-8">
   <title>SpectroW: Live Web Spectrogram Demo</title>
   <script id="shader-fs" type="x-shader/x-fragment">
     precision mediump int;
@@ -40,21 +41,40 @@
   <script>
     function autostart() {
       spectrum = new Spectrow('glCanvas');
-      spectrum.start();
 
+      // Variable to hold random demo data
       var image = Array.apply(null, Array(128 * 3)).map(Number.prototype.valueOf, 128);
-      for(i=0; i<128*3; i+=3) {
-        image[i+2] = 255;
+
+      // Generate random data
+      var holdChannel = Math.floor((Math.random() * 10) + 1);
+      var channel = Math.floor((Math.random() * 3) + 0);
+      var generateData = function() {
+        holdChannel -= 1;
+        if (holdChannel <= 0) {
+          channel = Math.floor((Math.random() * 3) + 0);
+          holdChannel = Math.floor((Math.random() * 10) + 1);
+        }
+
+        for(i=0; i<128*3; i+=3) {
+          image[i+channel] = 255;
+          image[i+(channel+1)%3] = 0;
+          image[i+(channel+2)%3] = 0;
+        }
+        spectrum.appendLines(image);
+        spectrum.updateRender();
+
+        setTimeout(generateData, 30);
       }
-      
-      spectrum.appendLine(image);
-      spectrum.updateRender();
+
+      generateData();      
     }
   </script>
 
 </head>
 
 <body onload="autostart()">
+  <h1>SpectroW: WebGL-based real-time spectrogram plot.</h1>
+  <p>Check out page source for details.</p>
   <canvas id="glCanvas">
     Your browser doesn't appear to support the
     <code>&lt;canvas&gt;</code> element.

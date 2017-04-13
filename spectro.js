@@ -1,31 +1,30 @@
 Spectrow = function (canvas_id) {
-  this.canvas = document.getElementById(canvas_id);
+  var canvas_element = document.getElementById(canvas_id);
 
-  this.gl;
-  this.canvas;
-  this.squareVerticesBuffer;
-  this.squareUVBuffer;
-  this.squareIdxBuffer;
-  this.mvMatrix;
-  this.shaderProgram;
-  this.vertexPositionAttribute;
-  this.vertexUVAttribute;
-  this.orthoMatrix;
+  var gl_context;
+  var vertex_buffer;
+  var uv_buffer;
+  var vertex_idx_buffer;
+  var mv_matrix;
+  var shader_program;
+  var vertex_pos_attr;
+  var vertex_uv_attr;
+  var projection_matrix;
 
-  this.plot_texture;
-  this.noise_data = Array.apply(null, Array(256 * 128 * 3)).map(Number.prototype.valueOf, 128);
+  var plot_texture;
+  var spec_data = Array.apply(null, Array(256 * 128 * 3)).map(Number.prototype.valueOf, 128);
 
-  this.initWebGL = function initWebGL(canv) {
-    this.gl = canv.getContext('webgl') || canv.getContext('experimental-webgl');
+  var initWebGL = function initWebGL(canv) {
+    gl_context = canv.getContext('webgl') || canv.getContext('experimental-webgl');
 
-    if (!this.gl) {
+    if (!gl_context) {
       alert('SpectroW: Unable to initialize WebGL. Your browser may not support it.');
     }
 
-    return this.gl;
+    return gl_context;
   }
 
-  this.getShader = function getShader(gl, id, type) {
+  var getShader = function getShader(gl, id, type) {
     var shaderScript, theSource, currentChild, shader;
 
     shaderScript = document.getElementById(id);
@@ -38,50 +37,50 @@ Spectrow = function (canvas_id) {
 
     if (!type) {
       if (shaderScript.type == 'x-shader/x-fragment') {
-        type = this.gl.FRAGMENT_SHADER;
+        type = gl_context.FRAGMENT_SHADER;
       } else if (shaderScript.type == 'x-shader/x-vertex') {
-        type = this.gl.VERTEX_SHADER;
+        type = gl_context.VERTEX_SHADER;
       } else {
         return null;
       }
     }
-    shader = this.gl.createShader(type);
+    shader = gl_context.createShader(type);
 
-    this.gl.shaderSource(shader, theSource);
-    this.gl.compileShader(shader);
+    gl_context.shaderSource(shader, theSource);
+    gl_context.compileShader(shader);
 
-    if (!this.gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.log('SpectroW: An error occurred compiling the shaders: ' + this.gl.getShaderInfoLog(shader));
-      this.gl.deleteShader(shader);
+    if (!gl_context.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error('SpectroW: An error occurred compiling the shaders: ' + gl_context.getShaderInfoLog(shader));
+      gl_context.deleteShader(shader);
       return null;
     }
 
     return shader;
   }
 
-  this.initShaders = function initShaders() {
-    var fragmentShader = this.getShader(this.gl, 'shader-fs');
-    var vertexShader = this.getShader(this.gl, 'shader-vs');
+  var initShaders = function initShaders() {
+    var fragmentShader = getShader(gl_context, 'shader-fs');
+    var vertexShader = getShader(gl_context, 'shader-vs');
 
-    this.shaderProgram = this.gl.createProgram();
-    this.gl.attachShader(this.shaderProgram, vertexShader);
-    this.gl.attachShader(this.shaderProgram, fragmentShader);
-    this.gl.linkProgram(this.shaderProgram);
+    shader_program = gl_context.createProgram();
+    gl_context.attachShader(shader_program, vertexShader);
+    gl_context.attachShader(shader_program, fragmentShader);
+    gl_context.linkProgram(shader_program);
 
-    if (!this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS)) {
-      console.log('SpectroW: Unable to initialize the shader program: ' + this.gl.getProgramInfoLog(this.shaderProgram));
+    if (!gl_context.getProgramParameter(shader_program, gl_context.LINK_STATUS)) {
+      console.error('SpectroW: Unable to initialize the shader program: ' + gl_context.getProgramInfoLog(shader_program));
     }
 
-    this.gl.useProgram(this.shaderProgram);
+    gl_context.useProgram(shader_program);
 
-    this.vertexPositionAttribute = this.gl.getAttribLocation(this.shaderProgram, 'aVertexPosition');
-    this.gl.enableVertexAttribArray(this.vertexPositionAttribute);
+    vertex_pos_attr = gl_context.getAttribLocation(shader_program, 'aVertexPosition');
+    gl_context.enableVertexAttribArray(vertex_pos_attr);
 
-    this.vertexUVAttribute = this.gl.getAttribLocation(this.shaderProgram, 'aUVPositions');
-    this.gl.enableVertexAttribArray(this.vertexUVAttribute);
+    vertex_uv_attr = gl_context.getAttribLocation(shader_program, 'aUVPositions');
+    gl_context.enableVertexAttribArray(vertex_uv_attr);
   }
 
-  this.initBuffers = function initBuffers() {
+  var initBuffers = function initBuffers() {
     var vertices = [
       -1.0, 1.0, 0.0,
       -1.0, -1.0, 0.0,
@@ -101,116 +100,118 @@ Spectrow = function (canvas_id) {
       2, 1, 3
     ]
 
-    this.squareVerticesBuffer = this.gl.createBuffer();
-    this.squareUVBuffer = this.gl.createBuffer();
-    this.squareIdxBuffer = this.gl.createBuffer();
+    vertex_buffer = gl_context.createBuffer();
+    uv_buffer = gl_context.createBuffer();
+    vertex_idx_buffer = gl_context.createBuffer();
 
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.squareVerticesBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(vertices), this.gl.STATIC_DRAW);
+    gl_context.bindBuffer(gl_context.ARRAY_BUFFER, vertex_buffer);
+    gl_context.bufferData(gl_context.ARRAY_BUFFER, new Float32Array(vertices), gl_context.STATIC_DRAW);
 
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.squareUVBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(uv), this.gl.STATIC_DRAW);
+    gl_context.bindBuffer(gl_context.ARRAY_BUFFER, uv_buffer);
+    gl_context.bufferData(gl_context.ARRAY_BUFFER, new Float32Array(uv), gl_context.STATIC_DRAW);
 
-    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.squareIdxBuffer);
-    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), this.gl.STATIC_DRAW);
+    gl_context.bindBuffer(gl_context.ELEMENT_ARRAY_BUFFER, vertex_idx_buffer);
+    gl_context.bufferData(gl_context.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl_context.STATIC_DRAW);
   }
 
-  this.loadIdentity = function loadIdentity() {
-    this.mvMatrix = Matrix.I(4);
+  var mvTranslate = function mvTranslate(v) {
+    mv_matrix = mv_matrix.x(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
   }
 
-  this.multMatrix = function multMatrix(m) {
-    this.mvMatrix = this.mvMatrix.x(m);
+  var setAttributes = function setAttributes() {
+    gl_context.bindBuffer(gl_context.ARRAY_BUFFER, vertex_buffer);
+    gl_context.vertexAttribPointer(vertex_pos_attr, 3, gl_context.FLOAT, false, 0, 0);
+    gl_context.bindBuffer(gl_context.ARRAY_BUFFER, uv_buffer);
+    gl_context.vertexAttribPointer(vertex_uv_attr, 2, gl_context.FLOAT, false, 0, 0);
   }
 
-  this.mvTranslate = function mvTranslate(v) {
-    this.multMatrix(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
+  var setUniforms = function setUniforms() {
+    var pUniform = gl_context.getUniformLocation(shader_program, "uPMatrix");
+    gl_context.uniformMatrix4fv(pUniform, false, new Float32Array(projection_matrix.flatten()));
+
+    var mvUniform = gl_context.getUniformLocation(shader_program, "uMVMatrix");
+    gl_context.uniformMatrix4fv(mvUniform, false, new Float32Array(mv_matrix.flatten()));
+
+    var sceen_width_uniform = gl_context.getUniformLocation(shader_program, "screen_width");
+    var sceen_height_uniform = gl_context.getUniformLocation(shader_program, "screen_height");
+    gl_context.uniform1i(sceen_width_uniform, canvas_element.width);
+    gl_context.uniform1i(sceen_height_uniform, canvas_element.height);
+
+    gl_context.activeTexture(gl_context.TEXTURE0);
+    gl_context.bindTexture(gl_context.TEXTURE_2D, plot_texture);
+    gl_context.uniform1i(gl_context.getUniformLocation(shader_program, 'uSampler'), 0);
   }
 
-  this.setAttributes = function setAttributes() {
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.squareVerticesBuffer);
-    this.gl.vertexAttribPointer(this.vertexPositionAttribute, 3, this.gl.FLOAT, false, 0, 0);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.squareUVBuffer);
-    this.gl.vertexAttribPointer(this.vertexUVAttribute, 2, this.gl.FLOAT, false, 0, 0);
+  var drawScene = function drawScene() {
+    gl_context.clear(gl_context.COLOR_BUFFER_BIT | gl_context.DEPTH_BUFFER_BIT);
+
+    projection_matrix = makeOrtho(-1.0, 1.0, -1.0, 1.0, 0.1, 100.0);
+
+    mv_matrix = Matrix.I(4);
+    mvTranslate([0.0, 0.0, -0.2]);
+
+    setAttributes();
+    setUniforms();
+
+    gl_context.bindBuffer(gl_context.ELEMENT_ARRAY_BUFFER, vertex_idx_buffer);
+    gl_context.drawArrays(gl_context.TRIANGLE_STRIP, 0, 4);
   }
 
-  this.setUniforms = function setUniforms() {
-    var pUniform = this.gl.getUniformLocation(this.shaderProgram, "uPMatrix");
-    this.gl.uniformMatrix4fv(pUniform, false, new Float32Array(this.orthoMatrix.flatten()));
+  var initTexture = function initTextures() {
+    plot_texture = gl_context.createTexture();
 
-    var mvUniform = this.gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
-    this.gl.uniformMatrix4fv(mvUniform, false, new Float32Array(this.mvMatrix.flatten()));
-
-    var sceen_width_uniform = this.gl.getUniformLocation(this.shaderProgram, "screen_width");
-    var sceen_height_uniform = this.gl.getUniformLocation(this.shaderProgram, "screen_height");
-    this.gl.uniform1i(sceen_width_uniform, this.canvas.width);
-    this.gl.uniform1i(sceen_height_uniform, this.canvas.height);
-
-    this.gl.activeTexture(this.gl.TEXTURE0);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.plot_texture);
-    this.gl.uniform1i(this.gl.getUniformLocation(this.shaderProgram, 'uSampler'), 0);
+    gl_context.bindTexture(gl_context.TEXTURE_2D, plot_texture);
+    gl_context.texImage2D(gl_context.TEXTURE_2D, 0, gl_context.RGB, 128, 256, 0, gl_context.RGB, gl_context.UNSIGNED_BYTE, new Uint8Array(spec_data));
+    gl_context.texParameteri(gl_context.TEXTURE_2D, gl_context.TEXTURE_MAG_FILTER, gl_context.LINEAR);
+    gl_context.texParameteri(gl_context.TEXTURE_2D, gl_context.TEXTURE_MIN_FILTER, gl_context.LINEAR_MIPMAP_NEAREST);
+    gl_context.generateMipmap(gl_context.TEXTURE_2D);
+    gl_context.bindTexture(gl_context.TEXTURE_2D, null);
   }
 
-  this.drawScene = function drawScene() {
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-
-    this.orthoMatrix = makeOrtho(-1.0, 1.0, -1.0, 1.0, 0.1, 100.0);
-
-    this.loadIdentity();
-    this.mvTranslate([0.0, 0.0, -0.2]);
-
-    this.setAttributes();
-    this.setUniforms();
-
-    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.squareIdxBuffer);
-    this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-  }
-
-  this.handleTextureLoaded = function handleTextureLoaded(image, texture) {
-    this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, 128, 256, 0, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(this.noise_data));
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_NEAREST);
-    this.gl.generateMipmap(this.gl.TEXTURE_2D);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, null);
-  }
-
-  this.initTextures = function initTextures() {
-    this.plot_texture = this.gl.createTexture();
-
-    this.handleTextureLoaded(null, this.plot_texture);
-  }
-
-  this.start = function start() {
-    this.gl = this.initWebGL(this.canvas);
-
-    if (!this.gl) {
-      console.log("SpectroW: Failed to initialize WebGL contenxt.");
+  /**
+   * @brief Append one or several lines to the spectrum.
+   *        This method adds data to the array and removes the oldest part of the array of the corresponding size.
+   *        GPU texture is not updated by this method. Call updateRender() to upload changes and render new frame.
+   * 
+   * @param lines_data Array of the data to be added to the spectrogram. Size of the array must be a multiple of the 
+   *        texture vertical resolution times three (for three color channels)
+   */
+  this.appendLines = function appendLines(lines_data) {
+    if (lines_data.length % 128*3 != 0) {
+      console.error("SpectroW: Tried to append data array of invalid size. Make sure array size is a multiple of the vertical texture resolution times three.");
       return;
     }
-
-    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    this.gl.clearColor(0.0, 0.4, 0.0, 1.0);
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-
-    this.initShaders();
-    this.initBuffers();
-    this.initTextures();
-
-    this.drawScene();
+    spec_data = spec_data.slice(0, 256*128*3-lines_data.length);
+    spec_data = lines_data.concat(spec_data);
   }
 
-  this.appendLine = function appendLine(line_data) {
-    this.noise_data = this.noise_data.slice(0, 256*128*3-line_data.length);
-    this.noise_data = line_data.concat(this.noise_data);
-  }
-
+  /**
+   * @brief Render frame.
+   *        Spectrogram texture is updated and rendered. 
+   */
   this.updateRender = function updateRender() {
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.plot_texture);
-    this.gl.texSubImage2D(this.gl.TEXTURE_2D, 0, 0, 0, 128, 256, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(this.noise_data));
-    this.gl.generateMipmap(this.gl.TEXTURE_2D);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+    gl_context.bindTexture(gl_context.TEXTURE_2D, plot_texture);
+    gl_context.texSubImage2D(gl_context.TEXTURE_2D, 0, 0, 0, 128, 256, gl_context.RGB, gl_context.UNSIGNED_BYTE, new Uint8Array(spec_data));
+    gl_context.generateMipmap(gl_context.TEXTURE_2D);
+    gl_context.bindTexture(gl_context.TEXTURE_2D, null);
 
-    this.drawScene()
+    drawScene()
   }
+
+  gl_context = initWebGL(canvas_element);
+
+  if (!gl_context) {
+    console.error("SpectroW: Failed to initialize WebGL contenxt.");
+    return;
+  }
+
+  gl_context.viewport(0, 0, canvas_element.width, canvas_element.height);
+  gl_context.clearColor(0.0, 0.4, 0.0, 1.0);
+  gl_context.clear(gl_context.COLOR_BUFFER_BIT);
+
+  initShaders();
+  initBuffers();
+  initTexture();
+
+  drawScene();
 }
