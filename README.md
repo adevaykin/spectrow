@@ -1,2 +1,2 @@
 # spectrow
-WebGL spectrogram
+Real-time spectrogram based on WebGL.
