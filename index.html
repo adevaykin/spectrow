@@ -1,50 +1,56 @@
 <!DOCTYPE html>
 
 <head>
-<script id="shader-fs" type="x-shader/x-fragment">
-  precision mediump int;
+  <title>SpectroW: Live Web Spectrogram Demo</title>
+  <script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump int;
 
-  uniform int screen_width;
-  uniform int screen_height;
-  uniform sampler2D uSampler;
+    uniform int screen_width;
+    uniform int screen_height;
+    uniform sampler2D uSampler;
 
-  varying mediump vec2 uv;
-
-  void main(void) {
-    /*gl_FragColor = vec4(
-      0.1*gl_FragCoord.x/float(screen_width),
-      0.1*gl_FragCoord.y/float(screen_height),
-      uv.t,
-      1.0);*/
+    varying mediump vec2 uv;
+    
+    void main(void) {
       gl_FragColor = texture2D(uSampler, vec2(uv.s, uv.t));
-  }
-</script>
-<script src="sylvester.js"></script>
-<script src="glUtils.js"></script>
-<script id="shader-vs" type="x-shader/x-vertex">
-  attribute vec3 aVertexPosition;
-  attribute vec2 aUVPositions;
+    }
+  </script>
+  
+  <script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec2 aUVPositions;
 
-  uniform mat4 uMVMatrix;
-  uniform mat4 uPMatrix;
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
 
-  varying mediump vec2 uv;
+    varying mediump vec2 uv;
+    
+    void main(void) {
+      uv = aUVPositions;
+      gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+    }
+  </script>
 
-  void main(void) {
-    uv = aUVPositions;
-    gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-  }
-</script>
-<script src="spectro.js"></script>
+  <script src="sylvester.js"></script>
+  <script src="glUtils.js"></script>
+  <script src="spectro.js"></script>
 
-<link rel="stylesheet" type="text/css" href="styles.css"/>
+  <link rel="stylesheet" type="text/css" href="styles.css" />
 
-<script>
-function autostart() {
-  spectrum = new Spectrow('glCanvas');
-  spectrum.start();
-}
-</script>
+  <script>
+    function autostart() {
+      spectrum = new Spectrow('glCanvas');
+      spectrum.start();
+
+      var image = Array.apply(null, Array(128 * 3)).map(Number.prototype.valueOf, 128);
+      for(i=0; i<128*3; i+=3) {
+        image[i+2] = 255;
+      }
+      
+      spectrum.appendLine(image);
+      spectrum.updateRender();
+    }
+  </script>
 
 </head>
 

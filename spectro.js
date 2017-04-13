@@ -1,4 +1,4 @@
-Spectrow = function(canvas_id) {
+Spectrow = function (canvas_id) {
   this.canvas = document.getElementById(canvas_id);
 
   this.gl;
@@ -12,28 +12,15 @@ Spectrow = function(canvas_id) {
   this.vertexUVAttribute;
   this.orthoMatrix;
 
-  this.cubeTexture;
+  this.plot_texture;
+  this.noise_data = Array.apply(null, Array(256 * 128 * 3)).map(Number.prototype.valueOf, 128);
 
   this.initWebGL = function initWebGL(canv) {
-    this.gl = null;
-
-    // Try to grab the standard context. If it fails, fallback to experimental.
     this.gl = canv.getContext('webgl') || canv.getContext('experimental-webgl');
 
-    // If we don't have a GL context, give up now
     if (!this.gl) {
-      alert('Unable to initialize WebGL. Your browser may not support it.');
+      alert('SpectroW: Unable to initialize WebGL. Your browser may not support it.');
     }
-
-    // var available_extensions = this.gl.getSupportedExtensions();
-    // var idx = available_extensions.indexOf('WEBGL_depth_texture');
-    // if (idx <= -1) {
-    //   alert("Required WebGL extension 'WEBGL_depth_texture' is not available :(");
-    //   this.gl = null;
-    //   return null;
-    // }
-    //
-    // this.gl.getExtension('WEBGL_depth_texture');
 
     return this.gl;
   }
@@ -55,22 +42,18 @@ Spectrow = function(canvas_id) {
       } else if (shaderScript.type == 'x-shader/x-vertex') {
         type = this.gl.VERTEX_SHADER;
       } else {
-        // Unknown shader type
         return null;
       }
     }
     shader = this.gl.createShader(type);
 
     this.gl.shaderSource(shader, theSource);
-
-    // Compile the shader program
     this.gl.compileShader(shader);
 
-    // See if it compiled successfully
     if (!this.gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.log('An error occurred compiling the shaders: ' + this.gl.getShaderInfoLog(shader));
-        this.gl.deleteShader(shader);
-        return null;
+      console.log('SpectroW: An error occurred compiling the shaders: ' + this.gl.getShaderInfoLog(shader));
+      this.gl.deleteShader(shader);
+      return null;
     }
 
     return shader;
@@ -80,17 +63,13 @@ Spectrow = function(canvas_id) {
     var fragmentShader = this.getShader(this.gl, 'shader-fs');
     var vertexShader = this.getShader(this.gl, 'shader-vs');
 
-    // Create the shader program
-
     this.shaderProgram = this.gl.createProgram();
     this.gl.attachShader(this.shaderProgram, vertexShader);
     this.gl.attachShader(this.shaderProgram, fragmentShader);
     this.gl.linkProgram(this.shaderProgram);
 
-    // If creating the shader program failed, alert
-
     if (!this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS)) {
-      console.log('Unable to initialize the shader program: ' + this.gl.getProgramInfoLog(this.shaderProgram));
+      console.log('SpectroW: Unable to initialize the shader program: ' + this.gl.getProgramInfoLog(this.shaderProgram));
     }
 
     this.gl.useProgram(this.shaderProgram);
@@ -104,17 +83,17 @@ Spectrow = function(canvas_id) {
 
   this.initBuffers = function initBuffers() {
     var vertices = [
-      -1.0,  1.0, 0.0,
+      -1.0, 1.0, 0.0,
       -1.0, -1.0, 0.0,
-       1.0,  1.0, 0.0,
-       1.0, -1.0, 0.0
+      1.0, 1.0, 0.0,
+      1.0, -1.0, 0.0
     ];
 
     var uv = [
-      0.0, 0.0,
       0.0, 1.0,
-      1.0, 0.0,
-      1.0, 1.0
+      1.0, 1.0,
+      0.0, 0.0,
+      1.0, 0.0
     ];
 
     var indices = [
@@ -168,7 +147,7 @@ Spectrow = function(canvas_id) {
     this.gl.uniform1i(sceen_height_uniform, this.canvas.height);
 
     this.gl.activeTexture(this.gl.TEXTURE0);
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.cubeTexture);
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.plot_texture);
     this.gl.uniform1i(this.gl.getUniformLocation(this.shaderProgram, 'uSampler'), 0);
   }
 
@@ -189,7 +168,7 @@ Spectrow = function(canvas_id) {
 
   this.handleTextureLoaded = function handleTextureLoaded(image, texture) {
     this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, 256, 128, 0, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(image));
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, 128, 256, 0, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(this.noise_data));
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_NEAREST);
     this.gl.generateMipmap(this.gl.TEXTURE_2D);
@@ -197,36 +176,22 @@ Spectrow = function(canvas_id) {
   }
 
   this.initTextures = function initTextures() {
-    this.cubeTexture = this.gl.createTexture();
+    this.plot_texture = this.gl.createTexture();
 
-    // var self = this;
-    // this.loadingImage = new Image();
-    // this.loadingImage.onload = function() { self.handleTextureLoaded(self.loadingImage, self.cubeTexture); }
-    // this.loadingImage.src = 'images/loading_tex.png';
-
-    var image = Array.apply(null, Array(256*128*3)).map(Number.prototype.valueOf, 128);
-    this.handleTextureLoaded(image, this.cubeTexture);
+    this.handleTextureLoaded(null, this.plot_texture);
   }
 
   this.start = function start() {
-    // Initialize the GL context
     this.gl = this.initWebGL(this.canvas);
 
-    // Only continue if WebGL is available and working
     if (!this.gl) {
+      console.log("SpectroW: Failed to initialize WebGL contenxt.");
       return;
     }
 
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-
-    // Set clear color to black, fully opaque
     this.gl.clearColor(0.0, 0.4, 0.0, 1.0);
-    // Enable depth testing
-    this.gl.enable(this.gl.DEPTH_TEST);
-    // Near things obscure far things
-    this.gl.depthFunc(this.gl.LEQUAL);
-    // Clear the color as well as the depth buffer.
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     this.initShaders();
     this.initBuffers();
@@ -235,15 +200,17 @@ Spectrow = function(canvas_id) {
     this.drawScene();
   }
 
-  this.updateData = function updateData(data_source) {
-    //var image = Array.apply(null, Array(256*128*4)).map(Number.prototype.valueOf, 64);
+  this.appendLine = function appendLine(line_data) {
+    this.noise_data = this.noise_data.slice(0, 256*128*3-line_data.length);
+    this.noise_data = line_data.concat(this.noise_data);
+  }
 
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.cubeTexture);
-    this.gl.texSubImage2D(this.gl.TEXTURE_2D, 0, 0, 0, 256, 128, this.gl.RGB, this.gl.UNSIGNED_BYTE, Module.HEAPU8.subarray(data_source, data_source+268*128*3));
+  this.updateRender = function updateRender() {
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.plot_texture);
+    this.gl.texSubImage2D(this.gl.TEXTURE_2D, 0, 0, 0, 128, 256, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(this.noise_data));
     this.gl.generateMipmap(this.gl.TEXTURE_2D);
     this.gl.bindTexture(this.gl.TEXTURE_2D, null);
 
     this.drawScene()
   }
-
 }
